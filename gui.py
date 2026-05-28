@@ -88,7 +88,10 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
     def _get_css(self):
         if self._dark_theme:
             return b"""
-            window, .background { background: #0d0d1a; }
+            window, .background { background: #0d0d1a; color: #ccc; }
+            combobox { color: #ccc; }
+            combobox box.linked button.combo { color: #ccc; background: #13132a; border:1px solid #1e1e3a; }
+            entry { color: #ccc; background: #13132a; border:1px solid #1e1e3a; }
             .sidebar { background: #13132a; border-right: 1px solid #1e1e3a; }
             .nav-btn { padding:12px 18px; font-size:14px; color:#888;
                        background:transparent; border-left:3px solid transparent;
@@ -144,12 +147,16 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
             .btn-danger { border-color:#ff6b6b; color:#ff6b6b; font-weight:700; }
             .btn-danger:hover { background:#2a1a1a; }
             .btn-sm { padding:4px 10px; font-size:12px; }
-            .lang-btn { font-size:11px; padding:2px 6px; }
+            .lang-btn { font-size:11px; padding:2px 6px; color:#888; border:1px solid #2a2a5a; border-radius:4px; background:transparent; }
+            .lang-btn:hover { background:#1e1e3a; color:#eee; border-color:#4ecdc4; }
             .add-plus { font-size:24px; color:#555; }
             """
         else:
             return b"""
-            window, .background { background: #e8e8ec; }
+            window, .background { background: #e8e8ec; color: #222; }
+            combobox { color: #222; }
+            combobox box.linked button.combo { color: #222; background: #fff; border:1px solid #d0d0d8; }
+            entry { color: #222; background: #fff; border:1px solid #d0d0d8; }
             .sidebar { background: #ffffff; border-right: 1px solid #d0d0d8; }
             .nav-btn { padding:12px 18px; font-size:14px; color:#666;
                        background:transparent; border-left:3px solid transparent;
@@ -205,7 +212,8 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
             .btn-danger { border-color:#ff6b6b; color:#ff6b6b; font-weight:700; }
             .btn-danger:hover { background:#ffe8e8; }
             .btn-sm { padding:4px 10px; font-size:12px; }
-            .lang-btn { font-size:11px; padding:2px 6px; }
+            .lang-btn { font-size:11px; padding:2px 6px; color:#555; border:1px solid #c0c0c8; border-radius:4px; background:transparent; }
+            .lang-btn:hover { background:#e0e0e8; color:#222; border-color:#4ecdc4; }
             .add-plus { font-size:24px; color:#999; }
             """
 
