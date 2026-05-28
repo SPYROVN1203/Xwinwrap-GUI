@@ -10,40 +10,31 @@ echo "=== Building $APP v$VER ==="
 
 # ── Install system dependencies ─────────────────────────
 echo ""
-echo ">>> Installing system dependencies..."
-sudo apt update 2>/dev/null || true
-sudo apt install -y \
-    mpv \
-    xdotool \
-    x11-utils \
-    socat \
-    ffmpeg \
-    python3-gi \
-    python3-pil \
-    python3-gi-cairo \
-    build-essential \
-    dh-make \
-    devscripts \
-    pkg-config \
-    libx11-dev \
-    libxcomposite-dev \
-    libxdamage-dev \
-    libxrender-dev \
-    libxrandr-dev \
-    libxfixes-dev \
-    libxext-dev
-
-# Build xwinwrap from source if not installed
-if ! command -v xwinwrap &>/dev/null; then
-    echo ">>> xwinwrap not found — building from source..."
-    XW_DIR=$(mktemp -d)
-    git clone --depth=1 https://github.com/ujjwal96/xwinwrap.git "$XW_DIR"
-    cd "$XW_DIR"
-    make
-    sudo cp xwinwrap /usr/local/bin/
-    cd /tmp
-    rm -rf "$XW_DIR"
-    echo "    xwinwrap installed to /usr/local/bin/"
+if sudo -n true 2>/dev/null || [ "$EUID" -eq 0 ]; then
+    echo ">>> Installing system dependencies..."
+    sudo apt update 2>/dev/null || true
+    sudo apt install -y \
+        mpv \
+        xdotool \
+        x11-utils \
+        socat \
+        ffmpeg \
+        python3-gi \
+        python3-pil \
+        python3-gi-cairo \
+        build-essential \
+        dh-make \
+        devscripts \
+        pkg-config \
+        libx11-dev \
+        libxcomposite-dev \
+        libxdamage-dev \
+        libxrender-dev \
+        libxrandr-dev \
+        libxfixes-dev \
+        libxext-dev
+else
+    echo ">>> Skipping apt install (no sudo) — assuming dependencies are already installed"
 fi
 
 # ── Clean previous build ───────────────────────────────
@@ -57,6 +48,15 @@ mkdir -p "$PKG_DIR/usr/share/applications"
 mkdir -p "$PKG_DIR/usr/share/icons/hicolor/128x128/apps"
 mkdir -p "$PKG_DIR/usr/share/doc/$APP"
 
+# Build xwinwrap from source and package into .deb
+echo ">>> Building xwinwrap from source for packaging..."
+XW_DIR=$(mktemp -d)
+git clone --depth=1 https://github.com/mmhobi7/xwinwrap.git "$XW_DIR"
+make -C "$XW_DIR"
+cp "$XW_DIR/xwinwrap" "$PKG_DIR/usr/bin/"
+rm -rf "$XW_DIR"
+echo "    xwinwrap packaged into /usr/bin/"
+
 # ── DEBIAN/control ─────────────────────────────────────
 cat > "$PKG_DIR/DEBIAN/control" <<EOF
 Package: $APP
@@ -65,7 +65,7 @@ Section: utils
 Priority: optional
 Architecture: $ARCH
 Depends: python3, python3-gi, python3-pil, mpv, xdotool, x11-utils, socat, ffmpeg
-Recommends: xwinwrap
+Suggests: nitrogen, feh
 Maintainer: $(whoami) <$(whoami)@$(hostname)>
 Description: GTK3 GUI for managing xwinwrap + mpv video wallpapers
  Inspired by Lively Wallpaper / Wallpaper Engine.
@@ -88,7 +88,7 @@ mkdir -p "$CONFIG_DIR/thumbnails"
 
 # Check dependencies
 MISSING=""
-for cmd in mpv xdotool xprop socat ffmpeg xwinwrap; do
+for cmd in mpv xdotool xprop socat ffmpeg; do
     if ! command -v "$cmd" &>/dev/null; then
         MISSING="$MISSING $cmd"
     fi
