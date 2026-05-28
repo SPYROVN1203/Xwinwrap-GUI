@@ -10,7 +10,7 @@ import threading
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict, List, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
  
 logger = logging.getLogger("xwinwrap-tools")
 
@@ -34,6 +34,7 @@ class XwinwrapConfig:
     override_redirect: bool = False
     fdt_type: int = -1
     screen: str = ""
+    autostart: bool = False
 
     def build_xwinwrap_args(self) -> List[str]:
         args: List[str] = []
@@ -53,7 +54,9 @@ class XwinwrapConfig:
         if self.override_redirect:
             args.append("-ov")
         if self.screen:
-            args.extend(["-g", self.screen, "-ni", "-b", "-nf", "-d"])
+            screen_val = self.screen.replace("--screen=", "").strip()
+            if screen_val:
+                args.append(f"--screen={screen_val}")
         return args
 
     def build_mpv_args(self) -> List[str]:
@@ -85,6 +88,15 @@ class XwinwrapConfig:
     def build_command_str(self) -> str:
         parts = self.build_command_list()
         return " ".join(shlex.quote(p) for p in parts)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "XwinwrapConfig":
+        valid = set(cls.__dataclass_fields__.keys())
+        kwargs = {k: v for k, v in d.items() if k in valid}
+        return cls(**kwargs)
 
 
 class WallpaperManager:
@@ -159,6 +171,10 @@ class WallpaperManager:
 
         subprocess.run(
             ["pkill", "-f", "xwinwrap.*mpv"],
+            capture_output=True,
+        )
+        subprocess.run(
+            ["pkill", "-f", r"mpv\s+-wid"],
             capture_output=True,
         )
         self._process = None
@@ -539,6 +555,7 @@ def generate_script(command: str, path: Optional[str] = None) -> str:
 
 def kill_all() -> None:
     subprocess.run(["pkill", "-f", "xwinwrap.*mpv"], capture_output=True)
+    subprocess.run(["pkill", "-f", r"mpv\s+-wid"], capture_output=True)
 
 
 def check_dependencies() -> List[str]:

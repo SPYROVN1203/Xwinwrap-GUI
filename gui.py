@@ -1,5 +1,6 @@
 import os
 import re
+import json
 from pathlib import Path
 import gi
 gi.require_version("Gtk", "3.0")
@@ -49,7 +50,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         self._manager = WallpaperManager()
         self._autostart = AutostartManager()
         self._history = WallpaperHistory()
-        self._config = XwinwrapConfig(video_path=self._get_last_path())
+        self._config = XwinwrapConfig()
 
         self._manager.set_status_callback(self._on_status_changed)
         self._stats_timer_id = None
@@ -58,14 +59,30 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         self._dark_theme = True
         self._lang_labels = []
         self._cmd_btns = []
+        self._initialized = False
+
+        self._load_settings()
+
+        if self._selected_path and os.path.isfile(self._selected_path):
+            self._config.video_path = self._selected_path
+        elif self._config.video_path and os.path.isfile(self._config.video_path):
+            self._selected_path = self._config.video_path
+        else:
+            path = self._get_last_path()
+            self._config.video_path = path
+            self._selected_path = path
 
         self.set_default_size(1248, 702)
         self.set_title(self._tr("app_title"))
         self._setup_css()
         self._build_ui()
+        self._apply_config()
+        self._sync_autostart()
 
         self._update_cmd_preview()
         self._on_status_changed(False)
+        self._initialized = True
+        self._save_settings()
         GLib.timeout_add(500, self._regenerate_thumbs)
         self.connect("destroy", lambda w: self._stop_stats_timer())
 
@@ -77,12 +94,70 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         items = self._history.get_all()
         return items[0].path if items else ""
 
+    SETTINGS_FILE = Path.home() / ".config" / "xwinwrap-gui" / "settings.json"
+
     def _show_error(self, msg):
         d = Gtk.MessageDialog(parent=self, modal=True,
                               message_type=Gtk.MessageType.ERROR,
                               buttons=Gtk.ButtonsType.OK, text=msg)
         d.run()
         d.destroy()
+
+    def _save_settings(self):
+        self.SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        data = {
+            "config": self._config.to_dict(),
+            "dark_theme": self._dark_theme,
+            "selected_path": self._selected_path,
+        }
+        self.SETTINGS_FILE.write_text(
+            json.dumps(data, indent=2, ensure_ascii=False)
+        )
+
+    def _load_settings(self):
+        if not self.SETTINGS_FILE.exists():
+            return
+        try:
+            data = json.loads(self.SETTINGS_FILE.read_text())
+            cfg = data.get("config", {})
+            if cfg:
+                self._config = XwinwrapConfig.from_dict(cfg)
+            if "dark_theme" in data:
+                self._dark_theme = data["dark_theme"]
+            if "selected_path" in data:
+                self._selected_path = data["selected_path"]
+        except Exception:
+            pass
+
+    def _apply_config(self):
+        c = self._config
+        self._mode_combo.set_active_id(c.mode)
+        self._geo_entry.set_text(c.geometry if c.geometry != "1920x1080+0+0" else "")
+        self._fps_scale.set_value(c.fps)
+        self._bright_scale.set_value(c.brightness)
+        self._speed_scale.set_value(c.speed)
+        self._scale_combo.set_active_id(c.scale)
+        self._tog_audio.set_active(c.audio)
+        self._tog_loop.set_active(c.loop)
+        self._tog_hwdec.set_active(c.hwdec)
+        self._tog_fs_pause.set_active(c.fullscreen_pause)
+        self._tog_max_pause.set_active(c.maximize_pause)
+        self._tog_sticky.set_active(c.sticky)
+        self._tog_argb.set_active(c.argb)
+        self._tog_ovr.set_active(c.override_redirect)
+        self._screen_entry.set_text(c.screen)
+        fdt_id = str(c.fdt_type) if c.fdt_type >= 0 else "-1"
+        self._fdt_combo.set_active_id(fdt_id)
+        self._tog_autostart.set_active(c.autostart)
+        self._theme_btn.set_label("☀" if self._dark_theme else "☾")
+
+    def _sync_autostart(self):
+        if self._config.autostart:
+            if not self._autostart.is_enabled():
+                self._autostart.enable(self._config.build_command_str())
+        else:
+            if self._autostart.is_enabled():
+                self._autostart.disable()
 
     # ── CSS ──────────────────────────────────────────────
     def _get_css(self):
@@ -665,7 +740,8 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         self._tog_audio = self._toggle_row(s, 2, "audio", False)
         self._tog_loop = self._toggle_row(s, 3, "loop", True)
         self._tog_hwdec = self._toggle_row(s, 4, "hwdec", True)
-        self._tog_autostart = self._toggle_row(s, 5, "autostart", self._autostart.is_enabled())
+        self._tog_autostart = self._toggle_row(s, 5, "autostart", self._config.autostart)
+        self._tog_autostart.connect("notify::active", lambda w, p: self._on_autostart_toggled())
 
         # Extra
         s = self._make_settings_section(vbox, "extra")
@@ -797,10 +873,14 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         c.screen = self._screen_entry.get_text().strip()
         fdt = self._fdt_combo.get_active_id()
         c.fdt_type = int(fdt) if fdt and fdt != "-1" else -1
+        c.autostart = self._tog_autostart.get_active()
         return c
 
     def _on_any_change(self):
+        if not self._initialized:
+            return
         self._config = self._read_config()
+        self._save_settings()
         self._update_cmd_preview()
         mode = self._mode_combo.get_active_id()
         self._geo_entry.set_sensitive(mode == "window")
@@ -837,6 +917,14 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
             self._on_stop()
         else:
             self._on_start()
+
+    def _on_autostart_toggled(self, *args):
+        if not self._initialized:
+            return
+        if self._tog_autostart.get_active():
+            self._autostart.enable(self._config.build_command_str())
+        else:
+            self._autostart.disable()
 
     def _on_kill_all(self):
         kill_all()
@@ -888,6 +976,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         self._dark_theme = not self._dark_theme
         self._theme_btn.set_label("☀" if self._dark_theme else "☾")
         self._setup_css()
+        self._save_settings()
 
     def _on_switch_lang(self):
         self._lang.toggle()
