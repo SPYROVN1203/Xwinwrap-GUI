@@ -191,8 +191,8 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
                      border-radius:4px; padding:2px 6px; font-size:10px; color:#666; }
             .wp-name { font-size:13px; font-weight:500; color:#222; }
             .wp-desc { font-size:11px; color:#777; }
-            .wp-menu { background:transparent; border:none; color:#888; }
-            .wp-menu:hover { background:#f0f0f4; color:#555; }
+            .wp-menu { background:transparent; border:1px solid transparent; color:#555; border-radius:4px; }
+            .wp-menu:hover { background:#e0e0e8; color:#222; border-color:#c0c0c8; }
             .section { background:#ffffff; border:1px solid #d0d0d8;
                        border-radius:6px; padding:10px 14px; margin-bottom:8px; }
             .section-title { font-size:11px; font-weight:600; color:#888;
