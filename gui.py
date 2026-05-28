@@ -54,7 +54,10 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         self._manager.set_status_callback(self._on_status_changed)
         self._stats_timer_id = None
         self._search_query = ""
+        self._selected_path = ""
         self._dark_theme = True
+        self._lang_labels = []
+        self._cmd_btns = []
 
         self.set_default_size(1248, 702)
         self.set_title(self._tr("app_title"))
@@ -114,6 +117,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
             .wp-card { border-radius:6px; border:1px solid #1e1e3a;
                        background:#13132a; }
             .wp-card:hover { border-color:#2a2a5a; }
+            .wp-card.selected { border:2px solid #4ecdc4; box-shadow: 0 0 8px rgba(78,205,196,0.3); }
             .wp-thumb { background:#0d0d1a; color:#555; }
             .badge { background:#13132a; border:1px solid #1e1e3a;
                      border-radius:4px; padding:2px 6px; font-size:10px; color:#888; }
@@ -174,6 +178,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
             .wp-card { border-radius:6px; border:1px solid #d0d0d8;
                        background:#ffffff; }
             .wp-card:hover { border-color:#a0a0b0; }
+            .wp-card.selected { border:2px solid #4ecdc4; box-shadow: 0 0 8px rgba(78,205,196,0.3); }
             .wp-thumb { background:#e8e8ec; color:#888; }
             .badge { background:#ffffff; border:1px solid #d0d0d8;
                      border-radius:4px; padding:2px 6px; font-size:10px; color:#666; }
@@ -254,7 +259,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         left = Gtk.Box(spacing=6)
         icon = Gtk.Image.new_from_icon_name("video-display-symbolic", Gtk.IconSize.MENU)
         left.pack_start(icon, False, False, 0)
-        title = Gtk.Label(label="Wallpaper Engine")
+        title = Gtk.Label(label="Xwinwrap Manager")
         title.get_style_context().add_class("label")
         left.pack_start(title, False, False, 0)
         hb.pack_start(left, False, False, 0)
@@ -291,6 +296,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
 
         set_page = self._build_settings_page()
         self._stack.add_titled(set_page, "settings", "Settings")
+        self._settings_page = set_page
 
         # Sidebar nav
         nav_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -324,10 +330,10 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         side_bottom.set_margin_start(10)
         side_bottom.set_margin_end(10)
 
-        add_wp_btn = Gtk.Button(label=self._tr("add_wallpaper"))
-        add_wp_btn.get_style_context().add_class("side-action")
-        add_wp_btn.connect("clicked", lambda b: self._on_add_wallpaper())
-        side_bottom.pack_start(add_wp_btn, False, False, 0)
+        self._sb_btn_add = Gtk.Button(label=self._tr("add_wallpaper"))
+        self._sb_btn_add.get_style_context().add_class("side-action")
+        self._sb_btn_add.connect("clicked", lambda b: self._on_add_wallpaper())
+        side_bottom.pack_start(self._sb_btn_add, False, False, 0)
 
         self._sb_btn_start = Gtk.Button(label=self._tr("start"))
         self._sb_btn_start.get_style_context().add_class("side-cmd")
@@ -376,7 +382,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         g = Gtk.Image.new_from_icon_name("view-grid-symbolic", Gtk.IconSize.MENU)
         self._grid_btn.add(g)
         self._grid_btn.get_style_context().add_class("toolbar-btn")
-        self._grid_btn.set_tooltip_text("Grid")
+        self._grid_btn.set_tooltip_text(self._tr("grid_tooltip"))
         tb.pack_start(self._grid_btn, False, False, 0)
 
         vbox.pack_start(tb, False, False, 0)
@@ -421,6 +427,8 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
     def _make_card(self, item: HistoryItem):
         eb = Gtk.EventBox()
         eb.get_style_context().add_class("wp-card")
+        if item.path == self._selected_path:
+            eb.get_style_context().add_class("selected")
         eb.set_size_request(CARD_W, CARD_H)
         eb.connect("button-press-event", lambda w, e, p=item: self._on_card_click(p))
 
@@ -529,8 +537,10 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
     def _on_card_click(self, item: HistoryItem):
         if os.path.isfile(item.path):
             self._config.video_path = item.path
-            self.set_title(f"Wallpaper Engine — {item.name}")
+            self.set_title(f"Xwinwrap Manager — {item.name}")
             self._on_any_change()
+        self._selected_path = item.path
+        self._rebuild_grid(self._search_entry.get_text())
 
     def _show_card_menu(self, btn, item: HistoryItem):
         pop = Gtk.Popover.new(btn)
@@ -586,6 +596,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
 
         self._geo_entry = Gtk.Entry()
         self._geo_entry.set_placeholder_text(self._tr("geometry_ph"))
+        self._lang_labels.append((self._geo_entry, "geometry_ph"))
         self._geo_entry.set_sensitive(False)
         self._geo_entry.connect("changed", lambda w: self._on_any_change())
         s.attach(self._geo_entry, 1, 0, 1, 1)
@@ -656,6 +667,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
 
         self._screen_entry = Gtk.Entry()
         self._screen_entry.set_placeholder_text(self._tr("screen_ph"))
+        self._lang_labels.append((self._screen_entry, "screen_ph"))
         self._screen_entry.connect("changed", lambda w: self._on_any_change())
         s.attach(self._make_label("screen"), 0, 3, 1, 1)
         s.attach(self._screen_entry, 1, 3, 1, 1)
@@ -677,6 +689,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         s.attach(self._cmd_view, 0, 0, 2, 1)
 
         btn_h = Gtk.Box(spacing=6)
+        self._cmd_btns = []
         for key, cb in [
             ("copy", lambda b: self._on_copy()),
             ("save_script", lambda b: self._on_save_script()),
@@ -686,6 +699,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
             b.get_style_context().add_class("btn")
             b.get_style_context().add_class("btn-sm")
             b.connect("clicked", cb)
+            self._cmd_btns.append((b, key))
             btn_h.pack_start(b, False, False, 0)
         s.attach(btn_h, 0, 1, 2, 1)
 
@@ -697,6 +711,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         box.get_style_context().add_class("section")
         t = Gtk.Label(label=self._tr(title_key), xalign=0)
         t.get_style_context().add_class("section-title")
+        self._lang_labels.append((t, title_key))
         box.pack_start(t, False, False, 0)
         inner = Gtk.Grid(column_spacing=8, row_spacing=4)
         box.pack_start(inner, True, True, 0)
@@ -706,6 +721,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
     def _make_label(self, key):
         lbl = Gtk.Label(label=self._tr(key), xalign=0)
         lbl.get_style_context().add_class("label")
+        self._lang_labels.append((lbl, key))
         return lbl
 
     def _toggle_row(self, parent, row, key, default):
@@ -716,6 +732,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         hb.pack_start(sw, False, False, 0)
         lbl = Gtk.Label(label=self._tr(key), xalign=0)
         hb.pack_start(lbl, True, True, 0)
+        self._lang_labels.append((lbl, key))
         parent.attach(hb, 0, row, 2, 1)
         return sw
 
@@ -737,7 +754,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         left.pack_start(self._sb_stats, False, False, 0)
         box.pack_start(left, False, False, 0)
 
-        ver = Gtk.Label(label="xwinwrap Wallpaper Engine v1.0")
+        ver = Gtk.Label(label="Xwinwrap Manager v1.0")
         box.pack_end(ver, False, False, 0)
         parent.pack_start(box, False, False, 0)
 
@@ -841,7 +858,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         d.add_button(self._tr("cancel"), Gtk.ResponseType.CANCEL)
         d.add_button(self._tr("save"), Gtk.ResponseType.ACCEPT)
         filt = Gtk.FileFilter()
-        filt.set_name("Media")
+        filt.set_name(self._tr("media_filter"))
         for p in ["*.mp4", "*.mkv", "*.webm", "*.avi", "*.mov",
                    "*.gif", "*.png", "*.jpg", "*.jpeg", "*.bmp"]:
             filt.add_pattern(p)
@@ -866,18 +883,35 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
 
     def _on_switch_lang(self):
         self._lang.toggle()
-        self._rebuild_lang_combos()
         self._lang_btn.set_label(self._tr("switch_lang"))
         self.set_title(self._tr("app_title"))
-        self._rebuild_grid(self._search_entry.get_text())
+        # Update all stored settings labels/placeholders
+        for widget, key in self._lang_labels:
+            txt = self._tr(key)
+            if isinstance(widget, Gtk.Label):
+                widget.set_text(txt)
+            elif isinstance(widget, Gtk.Entry):
+                widget.set_placeholder_text(txt)
+        # Update command buttons
+        for btn, key in self._cmd_btns:
+            btn.set_label(self._tr(key))
+        # Rebuild combos
+        self._rebuild_lang_combos()
+        # Update nav buttons
+        for btn, key in zip(self._nav_btns, ["library_btn", "settings_btn"]):
+            for ch in btn.get_child().get_children():
+                if isinstance(ch, Gtk.Label):
+                    ch.set_text(self._tr(key))
+        # Update search placeholder
+        self._search_entry.set_placeholder_text(self._tr("search_placeholder"))
+        # Update sidebar buttons
+        self._sb_btn_add.set_label(self._tr("add_wallpaper"))
         self._sb_btn_start.set_label(self._tr("start"))
         self._sb_btn_restart.set_label(self._tr("restart"))
         self._sb_btn_stop.set_label(self._tr("stop"))
-        # Refresh settings page labels by rebuilding it
-        # For simplicity, just switch page back and forth
-        p = self._stack.get_visible_child_name()
-        self._stack.set_visible_child_full("settings", Gtk.StackTransitionType.NONE)
-        GLib.timeout_add(100, lambda: (self._stack.set_visible_child_full(p, Gtk.StackTransitionType.NONE), False))
+        # Update grid + status
+        self._rebuild_grid(self._search_entry.get_text())
+        self._on_status_changed(self._manager.is_running)
 
     def _on_status_changed(self, running):
         txt = self._tr("running") if running else self._tr("stopped")

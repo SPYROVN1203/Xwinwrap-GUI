@@ -1,10 +1,7 @@
-# xwinwrap Wallpaper Manager
+# Xwinwrap Manager
 
-A GTK3 GUI for managing **video/live wallpapers** on Linux using `xwinwrap` + `mpv`.  
+GTK3 GUI for managing `xwinwrap` + `mpv` video wallpapers on Linux.  
 Inspired by Lively Wallpaper / Wallpaper Engine for Windows.
-
-![screenshot](https://img.shields.io/badge/GTK3-Python-blue)
-![platform](https://img.shields.io/badge/platform-Linux-lightgrey)
 
 ---
 
@@ -33,47 +30,28 @@ Inspired by Lively Wallpaper / Wallpaper Engine for Windows.
 
 ## Dependencies
 
-### System Packages
+### Runtime
 
 ```bash
-# Required
-xwinwrap    # Window layer wrapper
-mpv         # Video player (≥ 0.37 recommended)
+mpv         # Video player (≥ 0.37)
 xdotool     # Window state detection
 xprop       # X11 property inspection
-socat       # MPV IPC communication
+socat       # mpv IPC communication
 ffmpeg      # Thumbnail generation
-
-# Python
-python3-gi  # GTK3 bindings for Python
+python3-gi  # GTK3 bindings
 ```
-
-### Install on Debian / Ubuntu
-
-```bash
-sudo apt install xwinwrap mpv xdotool xprop socat ffmpeg python3-gi
-```
-
-### Install on Arch Linux
-
-```bash
-sudo pacman -S xwinwrap mpv xdotool xprop socat ffmpeg python-gobject
-```
-
-> **Note:** `xwinwrap` may need to be built from source on some distributions.  
-> See [ujjwal96/xwinwrap](https://github.com/ujjwal96/xwinwrap).
 
 ---
 
 ## Installation
 
+### Run from source
+
 ```bash
-git clone https://github.com/yourusername/xwinwrap-gui.git
-cd xwinwrap-gui
 python3 gui.py
 ```
 
-No pip install required — pure Python with GTK3.
+Pure Python with GTK3 — no pip install required.
 
 ---
 
@@ -117,9 +95,10 @@ Navigate to the **Settings** tab to configure:
 
 | File | Purpose |
 |---|---|
-| `gui.py` | GTK3 interface — sidebar, library grid, settings, status bar |
+ | `gui.py` | GTK3 interface — sidebar, library grid, settings, status bar |
 | `tools.py` | Core engine — config builder, process manager, auto-start, history, thumbnails |
-| `lang.py` | English / Vietnamese translations |
+| `lang.py` | English / Vietnamese translations (70 keys each) |
+| `build-deb.sh` | Build script (personal use) |
 | `AGENTS.md` | Project context for AI assistants |
 
 ### Data Storage
