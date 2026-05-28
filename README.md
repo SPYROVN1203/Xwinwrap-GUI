@@ -43,17 +43,7 @@ python3-gi  # GTK3 bindings
 
 ---
 
-## Installation
 
-### Run from source
-
-```bash
-python3 gui.py
-```
-
-Pure Python with GTK3 — no pip install required.
-
----
 
 ## Usage
 
@@ -99,7 +89,6 @@ Navigate to the **Settings** tab to configure:
 | `tools.py` | Core engine — config builder, process manager, auto-start, history, thumbnails |
 | `lang.py` | English / Vietnamese translations (70 keys each) |
 | `build-deb.sh` | Build script (personal use) |
-| `AGENTS.md` | Project context for AI assistants |
 
 ### Data Storage
 
