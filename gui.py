@@ -159,6 +159,10 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
             if self._autostart.is_enabled():
                 self._autostart.disable()
 
+    def _update_autostart(self):
+        if self._config.autostart:
+            self._autostart.enable(self._config.build_command_str())
+
     # ── CSS ──────────────────────────────────────────────
     def _get_css(self):
         if self._dark_theme:
@@ -881,6 +885,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
             return
         self._config = self._read_config()
         self._save_settings()
+        self._update_autostart()
         self._update_cmd_preview()
         mode = self._mode_combo.get_active_id()
         self._geo_entry.set_sensitive(mode == "window")
@@ -903,6 +908,7 @@ class XwinwrapGUI(Gtk.ApplicationWindow):
         else:
             self._config = c
             self._start_stats_timer()
+            self._update_autostart()
 
     def _on_stop(self):
         self._manager.stop()
